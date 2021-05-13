@@ -123,39 +123,42 @@ namespace Impostor.Hazel.Udp
         /// </summary>
         private async Task ListenAsync()
         {
-            try
+            while (!_stoppingCts.IsCancellationRequested)
             {
-                while (!_stoppingCts.IsCancellationRequested)
+                try
                 {
-                    UdpReceiveResult data;
-
-                    try
+                    while (!_stoppingCts.IsCancellationRequested)
                     {
-                        data = await _socket.ReceiveAsync();
+                        UdpReceiveResult data;
 
-                        if (data.Buffer.Length == 0)
+                        try
                         {
-                            Logger.Fatal("Hazel read 0 bytes from UDP server socket.");
+                            data = await _socket.ReceiveAsync();
+
+                            if (data.Buffer.Length == 0)
+                            {
+                                Logger.Fatal("Hazel read 0 bytes from UDP server socket.");
+                                continue;
+                            }
+                        }
+                        catch (SocketException)
+                        {
+                            // Client no longer reachable, pretend it didn't happen
                             continue;
                         }
-                    }
-                    catch (SocketException)
-                    {
-                        // Client no longer reachable, pretend it didn't happen
-                        continue;
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        // Socket was disposed, don't care.
-                        return;
-                    }
+                        catch (ObjectDisposedException)
+                        {
+                            // Socket was disposed, don't care.
+                            return;
+                        }
 
-                    await ProcessData(data);
+                        await ProcessData(data);
+                    }
                 }
-            }
-            catch (Exception e)
-            {
-                Logger.Error(e, "Listen loop error");
+                catch (Exception e)
+                {
+                    Logger.Error(e, "Listen loop error");
+                }
             }
         }
 
